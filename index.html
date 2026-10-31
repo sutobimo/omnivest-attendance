@@ -35,11 +35,11 @@
     }
 
     .omnivest-logo {
-  width: 180px;
-  height: auto;
-  display: block;
-  margin: 0 auto 16px;
-}
+      width: 180px;
+      height: auto;
+      display: block;
+      margin: 0 auto 16px;
+    }
 
     .logo h1 {
       margin: 0;
@@ -200,10 +200,13 @@
 
     <div class="location">
       <span class="status-dot" id="locationDot"></span>
-      <div class="value" id="locationStatus">Detecting location...</div>
+      <div class="value" id="locationStatus">
+        Detecting location...
+      </div>
     </div>
 
   </div>
+
 
   <div class="card">
 
@@ -231,6 +234,7 @@
     </div>
 
   </div>
+
 
   <div class="card">
 
@@ -260,7 +264,9 @@
 
   </div>
 
+
   <div class="message" id="message"></div>
+
 
   <div class="footer">
     OmniVest · Attendance System
@@ -268,223 +274,669 @@
 
 </div>
 
+
 <script>
 
-  /*
-   * Temporary configuration.
-   * We will connect this to Apps Script backend
-   * in the next step.
-   */
-
-  const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbyI_DEoM6JDDgQrsZTuZduJ_cQSqvLRIClME27EWXjUwN9Wn3GHLr8YrxKKr2PC3yIA/exec";
-
-  const params = new URLSearchParams(window.location.search);
-
-  const employeeKey =
-    params.get("key") || "test001";
-
-  let employee = null;
-  let latitude = null;
-  let longitude = null;
-  let photoBase64 = null;
-
-  const employeeName =
-    document.getElementById("employeeName");
-
-  const employeePosition =
-    document.getElementById("employeePosition");
-
-  const locationStatus =
-    document.getElementById("locationStatus");
-
-  const locationDot =
-    document.getElementById("locationDot");
-
-  const preview =
-    document.getElementById("preview");
-
-  const photoInput =
-    document.getElementById("photoInput");
-
-  const checkInBtn =
-    document.getElementById("checkInBtn");
-
-  const checkOutBtn =
-    document.getElementById("checkOutBtn");
-
-  const message =
-    document.getElementById("message");
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbyI_DEoM6JDDgQrsZTuZduJ_cQSqvLRIClME27EWXjUwN9Wn3GHLr8YrxKKr2PC3yIA/exec";
 
 
-  function showMessage(text, type = "") {
-    message.textContent = text;
-    message.className = "message " + type;
-  }
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
 
 
-  function takePhoto() {
-    photoInput.click();
-  }
+const employeeKey =
+  params.get("key") ||
+  "test001";
 
 
-  photoInput.addEventListener("change", function () {
+let employee = null;
 
-    const file = this.files[0];
+let latitude = null;
 
-    if (!file) return;
+let longitude = null;
 
-    const reader = new FileReader();
-
-    reader.onload = function () {
-
-      photoBase64 = reader.result;
-
-      preview.src = photoBase64;
-      preview.style.display = "block";
-
-      checkButtons();
-
-      showMessage(
-        "Photo ready. You can continue.",
-        "success"
-      );
-
-    };
-
-    reader.readAsDataURL(file);
-
-  });
+let photoBase64 = null;
 
 
-  function checkButtons() {
-
-    const ready =
-      latitude !== null &&
-      longitude !== null &&
-      photoBase64 !== null;
-
-    checkInBtn.disabled = !ready;
-    checkOutBtn.disabled = !ready;
-
-  }
+const employeeName =
+  document.getElementById(
+    "employeeName"
+  );
 
 
-  function getLocation() {
+const employeePosition =
+  document.getElementById(
+    "employeePosition"
+  );
 
-    if (!navigator.geolocation) {
 
-      locationStatus.textContent =
-        "GPS not supported";
+const locationStatus =
+  document.getElementById(
+    "locationStatus"
+  );
 
-      locationDot.classList.add("invalid");
 
-      return;
-    }
+const locationDot =
+  document.getElementById(
+    "locationDot"
+  );
 
-    navigator.geolocation.getCurrentPosition(
 
-      function(position) {
+const preview =
+  document.getElementById(
+    "preview"
+  );
 
-        latitude =
-          position.coords.latitude;
 
-        longitude =
-          position.coords.longitude;
+const photoInput =
+  document.getElementById(
+    "photoInput"
+  );
 
-        locationStatus.textContent =
-          "Location detected";
 
-        locationDot.classList.add("valid");
+const checkInBtn =
+  document.getElementById(
+    "checkInBtn"
+  );
 
-        checkButtons();
 
-      },
+const checkOutBtn =
+  document.getElementById(
+    "checkOutBtn"
+  );
 
-      function(error) {
 
-        locationStatus.textContent =
-          "Please allow GPS";
+const message =
+  document.getElementById(
+    "message"
+  );
 
-        locationDot.classList.add("invalid");
+
+function showMessage(
+  text,
+  type = ""
+) {
+
+  message.textContent =
+    text;
+
+  message.className =
+    "message " + type;
+}
+
+
+/* =====================================================
+   LOAD EMPLOYEE
+===================================================== */
+
+function loadEmployee() {
+
+  showMessage(
+    "Loading employee...",
+    "loading"
+  );
+
+
+  const callbackName =
+    "employeeCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+    function(result) {
+
+      delete window[callbackName];
+
+
+      if (
+        !result ||
+        !result.success
+      ) {
+
+        employeeName.textContent =
+          "Employee not found";
+
+        employeePosition.textContent =
+          "—";
 
         showMessage(
-          "Location permission is required.",
+          result &&
+          result.message
+            ? result.message
+            : "Unable to load employee.",
           "error"
         );
 
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
+        return;
       }
 
-    );
 
-  }
-
-
-  async function loadEmployee() {
-
-    /*
-     * Employee loading will be connected
-     * to Apps Script in the next backend step.
-     */
-
-    employeeName.textContent =
-      employeeKey.toUpperCase();
-
-    employeePosition.textContent =
-      "Loading...";
-
-    getLocation();
-
-  }
+      employee =
+        result;
 
 
-  function submitAttendance(type) {
+      employeeName.textContent =
+        result.name;
 
-    if (!photoBase64 ||
-        latitude === null ||
-        longitude === null) {
+
+      employeePosition.textContent =
+        result.position;
+
 
       showMessage(
-        "Please complete photo and GPS first.",
-        "error"
-      );
-
-      return;
-    }
-
-    showMessage(
-      "Submitting attendance...",
-      "loading"
-    );
-
-    checkInBtn.disabled = true;
-    checkOutBtn.disabled = true;
-
-    /*
-     * Backend connection will be added next.
-     */
-
-    setTimeout(function() {
-
-      showMessage(
-        type + " test ready.",
+        "Employee verified.",
         "success"
       );
 
-      checkButtons();
+      getLocation();
+    };
 
-    }, 500);
 
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  script.src =
+    APPS_SCRIPT_URL +
+    "?action=getEmployee" +
+    "&key=" +
+    encodeURIComponent(
+      employeeKey
+    ) +
+    "&callback=" +
+    callbackName;
+
+
+  script.onerror =
+    function() {
+
+      delete window[callbackName];
+
+      showMessage(
+        "Unable to connect to attendance server.",
+        "error"
+      );
+    };
+
+
+  document.body.appendChild(
+    script
+  );
+}
+
+
+/* =====================================================
+   CAMERA
+===================================================== */
+
+function takePhoto() {
+
+  photoInput.click();
+}
+
+
+photoInput.addEventListener(
+  "change",
+  function() {
+
+    const file =
+      this.files[0];
+
+
+    if (!file) return;
+
+
+    const reader =
+      new FileReader();
+
+
+    reader.onload =
+      function() {
+
+        photoBase64 =
+          reader.result;
+
+
+        preview.src =
+          photoBase64;
+
+
+        preview.style.display =
+          "block";
+
+
+        checkButtons();
+
+
+        showMessage(
+          "Photo ready. You can continue.",
+          "success"
+        );
+      };
+
+
+    reader.readAsDataURL(
+      file
+    );
+  }
+);
+
+
+/* =====================================================
+   GPS
+===================================================== */
+
+function getLocation() {
+
+  if (!navigator.geolocation) {
+
+    locationStatus.textContent =
+      "GPS not supported";
+
+    locationDot.classList.add(
+      "invalid"
+    );
+
+    return;
   }
 
 
-  loadEmployee();
+  locationStatus.textContent =
+    "Detecting location...";
+
+
+  navigator.geolocation.getCurrentPosition(
+
+    function(position) {
+
+      latitude =
+        position.coords.latitude;
+
+
+      longitude =
+        position.coords.longitude;
+
+
+      locationStatus.textContent =
+        "Location detected";
+
+
+      locationDot.classList.remove(
+        "invalid"
+      );
+
+
+      locationDot.classList.add(
+        "valid"
+      );
+
+
+      checkButtons();
+    },
+
+
+    function(error) {
+
+      locationStatus.textContent =
+        "Please allow GPS";
+
+
+      locationDot.classList.remove(
+        "valid"
+      );
+
+
+      locationDot.classList.add(
+        "invalid"
+      );
+
+
+      showMessage(
+        "Location permission is required.",
+        "error"
+      );
+    },
+
+
+    {
+      enableHighAccuracy: true,
+
+      timeout: 15000,
+
+      maximumAge: 0
+    }
+  );
+}
+
+
+/* =====================================================
+   BUTTON STATE
+===================================================== */
+
+function checkButtons() {
+
+  const ready =
+    latitude !== null &&
+    longitude !== null &&
+    photoBase64 !== null &&
+    employee !== null;
+
+
+  checkInBtn.disabled =
+    !ready;
+
+
+  checkOutBtn.disabled =
+    !ready;
+}
+
+
+/* =====================================================
+   SUBMIT ATTENDANCE
+===================================================== */
+
+function submitAttendance(
+  requestedType
+) {
+
+  if (
+    !employee ||
+    !photoBase64 ||
+    latitude === null ||
+    longitude === null
+  ) {
+
+    showMessage(
+      "Please complete employee, photo and GPS first.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  checkInBtn.disabled =
+    true;
+
+
+  checkOutBtn.disabled =
+    true;
+
+
+  showMessage(
+    "Submitting attendance...",
+    "loading"
+  );
+
+
+  const requestId =
+    "REQ-" +
+    Date.now() +
+    "-" +
+    Math.random()
+      .toString(36)
+      .substring(2, 8);
+
+
+  /*
+   * IMPORTANT:
+   * We use a normal HTML form POST
+   * to avoid browser CORS restrictions.
+   */
+
+
+  const form =
+    document.createElement(
+      "form"
+    );
+
+
+  form.method =
+    "POST";
+
+
+  form.action =
+    APPS_SCRIPT_URL;
+
+
+  form.target =
+    "attendance_submit_frame";
+
+
+  form.style.display =
+    "none";
+
+
+  const fields = {
+
+    action:
+      "saveAttendance",
+
+    employeeId:
+      employee.employeeId,
+
+    latitude:
+      latitude,
+
+    longitude:
+      longitude,
+
+    photoBase64:
+      photoBase64,
+
+    faceStatus:
+      "PENDING",
+
+    faceScore:
+      "",
+
+    device:
+      navigator.userAgent,
+
+    requestId:
+      requestId,
+
+    requestedType:
+      requestedType
+  };
+
+
+  Object.keys(fields)
+    .forEach(function(key) {
+
+      const input =
+        document.createElement(
+          "input"
+        );
+
+
+      input.type =
+        "hidden";
+
+
+      input.name =
+        key;
+
+
+      input.value =
+        fields[key];
+
+
+      form.appendChild(
+        input
+      );
+    });
+
+
+  document.body.appendChild(
+    form
+  );
+
+
+  form.submit();
+
+
+  /*
+   * Poll Apps Script until
+   * the attendance row appears.
+   */
+
+  pollAttendanceStatus(
+    requestId,
+    0
+  );
+}
+
+
+/* =====================================================
+   POLL RESULT
+===================================================== */
+
+function pollAttendanceStatus(
+  requestId,
+  attempt
+) {
+
+  if (attempt >= 20) {
+
+    showMessage(
+      "Attendance submitted. Please check your attendance sheet.",
+      "success"
+    );
+
+    checkButtons();
+
+    return;
+  }
+
+
+  const callbackName =
+    "statusCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+    function(result) {
+
+      delete window[callbackName];
+
+
+      if (
+        result &&
+        result.success &&
+        !result.pending
+      ) {
+
+        if (
+          result.approvalStatus ===
+          "AUTO APPROVED"
+        ) {
+
+          showMessage(
+
+            result.attendanceType +
+            " successful. Attendance approved.",
+
+            "success"
+          );
+
+        } else if (
+          result.approvalStatus ===
+          "PENDING"
+        ) {
+
+          showMessage(
+
+            result.attendanceType +
+            " recorded. Waiting for admin approval.",
+
+            "loading"
+          );
+
+        } else {
+
+          showMessage(
+
+            "Attendance rejected.",
+
+            "error"
+          );
+        }
+
+
+        checkButtons();
+
+        return;
+      }
+
+
+      setTimeout(
+        function() {
+
+          pollAttendanceStatus(
+            requestId,
+            attempt + 1
+          );
+
+        },
+        1000
+      );
+    };
+
+
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  script.src =
+    APPS_SCRIPT_URL +
+    "?action=getStatus" +
+    "&requestId=" +
+    encodeURIComponent(
+      requestId
+    ) +
+    "&callback=" +
+    callbackName;
+
+
+  script.onerror =
+    function() {
+
+      delete window[callbackName];
+
+
+      setTimeout(
+        function() {
+
+          pollAttendanceStatus(
+            requestId,
+            attempt + 1
+          );
+
+        },
+        1000
+      );
+    };
+
+
+  document.body.appendChild(
+    script
+  );
+}
+
+
+/* =====================================================
+   START
+===================================================== */
+
+loadEmployee();
 
 </script>
 
